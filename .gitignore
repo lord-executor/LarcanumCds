@@ -1,5 +1,7 @@
 .vs
 *.user
-bin
-obj
-packages
+bin/
+obj/
+packages/
+wwwroot/
+.idea/
