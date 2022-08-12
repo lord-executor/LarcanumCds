@@ -4,6 +4,7 @@ import { BrowserModule } from '@angular/platform-browser';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
+import { ConfigurationService } from './configuration.service';
 import { LarcanumCdsService } from './larcanum-cds.service';
 import { MarkdownComponent } from './markdown.component';
 import { PageComponent } from './page.component';
@@ -19,7 +20,10 @@ import { PageComponent } from './page.component';
     HttpClientModule,
     AppRoutingModule
   ],
-  providers: [LarcanumCdsService],
+  providers: [
+    ConfigurationService,
+    LarcanumCdsService
+  ],
   bootstrap: [AppComponent]
 })
 export class AppModule { }
