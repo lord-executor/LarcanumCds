@@ -12,74 +12,80 @@ namespace LarcanumCds.Server.Controllers;
 [Route("[controller]")]
 public class ContentController
 {
-    private readonly SourceSettings _sourceSettings;
-    private readonly IDeserializer _yamlDeserializer;
+	private readonly ILogger<ContentController> _logger;
+	private readonly SourceSettings _sourceSettings;
+	private readonly IDeserializer _yamlDeserializer;
 
-    public ContentController(IOptions<SourceSettings> sourceSettings)
-    {
-        _sourceSettings = sourceSettings.Value;
-        _yamlDeserializer = new DeserializerBuilder().WithNamingConvention(CamelCaseNamingConvention.Instance).Build();
-    }
+	public ContentController(ILogger<ContentController> logger, IOptions<SourceSettings> sourceSettings)
+	{
+		_logger = logger;
+		_sourceSettings = sourceSettings.Value;
+		_yamlDeserializer = new DeserializerBuilder().WithNamingConvention(CamelCaseNamingConvention.Instance).Build();
+	}
 
-    [HttpGet("{*slug}")]
-    public async Task<IActionResult> Data(string slug)
-    {
-        var contentFilePath = Path.Combine(_sourceSettings.ContentPath, "data", slug, $"{Path.GetFileName(slug)}.yaml");
+	[HttpGet("{*slug}")]
+	public async Task<IActionResult> Data(string slug)
+	{
+		var contentFilePath = Path.Combine(_sourceSettings.ContentPath, "data", slug, $"{Path.GetFileName(slug)}.yaml");
 
-        try
-        {
-            var dataFile = new DataFile(_yamlDeserializer, contentFilePath);
-            await ProcessData(dataFile);
-            return new JsonResult(dataFile.Data);
-        }
-        catch (FileNotFoundException)
-        {
-            return new NotFoundResult();
-        }
-    }
+		_logger.LogInformation($"Resolving content request to {contentFilePath}");
 
-    private async Task ProcessData(DataFile dataFile)
-    {
-        if (dataFile.Data.ContainsKey("Type"))
-        {
-            var blueprintFilePath = Path.Combine(_sourceSettings.ContentPath, "blueprints", $"{dataFile.Data["Type"]}.yaml");
-            var blueprintFile = new FileInfo(blueprintFilePath);
+		try
+		{
+			var dataFile = new DataFile(_yamlDeserializer, contentFilePath);
+			await ProcessData(dataFile);
+			return new JsonResult(dataFile.Data);
+		}
+		catch (FileNotFoundException)
+		{
+			return new NotFoundResult();
+		}
+	}
 
-            if (blueprintFile.Exists)
-            {
-                using var blueprintReader = blueprintFile.OpenText();
-                var blueprint = _yamlDeserializer.Deserialize<Blueprint>(blueprintReader);
+	private async Task ProcessData(DataFile dataFile)
+	{
+		if (dataFile.Data.ContainsKey("Type"))
+		{
+			var blueprintFilePath =
+				Path.Combine(_sourceSettings.ContentPath, "blueprints", $"{dataFile.Data["Type"]}.yaml");
+			var blueprintFile = new FileInfo(blueprintFilePath);
 
-                foreach (var prop in blueprint.Properties)
-                {
-                    if (prop.Type == "blob")
-                    {
-                        var blobFilePath = Path.Combine(dataFile.File.DirectoryName!, (string)dataFile.Data[prop.Name]);
-                        var fileContent = await File.ReadAllTextAsync(blobFilePath);
+			if (blueprintFile.Exists)
+			{
+				using var blueprintReader = blueprintFile.OpenText();
+				var blueprint = _yamlDeserializer.Deserialize<Blueprint>(blueprintReader);
 
-                        if (Path.GetExtension(blobFilePath) == ".md")
-                        {
-                            var pipeline = new MarkdownPipelineBuilder().UseDiagrams().Build();
-                            fileContent = Markdown.ToHtml(fileContent, pipeline);
-                        }
+				foreach (var prop in blueprint.Properties)
+				{
+					if (prop.Type == "blob")
+					{
+						var blobFilePath = Path.Combine(dataFile.File.DirectoryName!, (string)dataFile.Data[prop.Name]);
+						var fileContent = await File.ReadAllTextAsync(blobFilePath);
 
-                        dataFile.Data[prop.Name] = fileContent;
-                    }
-                    else if (prop.Type == "markdown")
-                    {
-                        var pipeline = new MarkdownPipelineBuilder().Build();
-                        dataFile.Data[prop.Name] = Markdown.ToHtml((string)dataFile.Data[prop.Name], pipeline);
-                    }
-                    else if (prop.Type == "inline")
-                    {
-                        dataFile.Data[prop.Name] = await Task.WhenAll(dataFile.Derive(prop.Name).Select(async childData =>
-                        {
-                            await ProcessData(childData);
-                            return childData.Data;
-                        }));
-                    }
-                }
-            }
-        }
-    }
+						if (Path.GetExtension(blobFilePath) == ".md")
+						{
+							var pipeline = new MarkdownPipelineBuilder().UseDiagrams().Build();
+							fileContent = Markdown.ToHtml(fileContent, pipeline);
+						}
+
+						dataFile.Data[prop.Name] = fileContent;
+					}
+					else if (prop.Type == "markdown")
+					{
+						var pipeline = new MarkdownPipelineBuilder().Build();
+						dataFile.Data[prop.Name] = Markdown.ToHtml((string)dataFile.Data[prop.Name], pipeline);
+					}
+					else if (prop.Type == "inline")
+					{
+						dataFile.Data[prop.Name] = await Task.WhenAll(dataFile.Derive(prop.Name).Select(
+							async childData =>
+							{
+								await ProcessData(childData);
+								return childData.Data;
+							}));
+					}
+				}
+			}
+		}
+	}
 }
