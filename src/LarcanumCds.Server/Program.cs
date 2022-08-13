@@ -22,6 +22,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.Configure<SourceSettings>(builder.Configuration.GetSection(SourceSettings.SectionKey));
+builder.Services.Configure<SpaRoutingSettings>(builder.Configuration.GetSection(SpaRoutingSettings.SectionKey));
 
 builder.Services.AddImageSharp()
 	.ClearProviders()
@@ -45,5 +46,7 @@ app.UseAuthorization();
 app.UseImageSharp();
 
 app.MapControllers();
+
+app.UseMiddleware<SpaRoutingMiddleware>();
 
 app.Run();
