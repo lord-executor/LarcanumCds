@@ -1,6 +1,7 @@
 using LarcanumCds.Server;
 using LarcanumCds.Server.Configuration;
 using SixLabors.ImageSharp.Web.DependencyInjection;
+using SixLabors.ImageSharp.Web.Processors;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,7 +27,9 @@ builder.Services.Configure<SpaRoutingSettings>(builder.Configuration.GetSection(
 
 builder.Services.AddImageSharp()
 	.ClearProviders()
-	.AddProvider<ContentFileImageProvider>();
+	.AddProvider<ContentFileImageProvider>()
+	.RemoveProcessor<ResizeWebProcessor>()
+	.AddProcessor<RestrictedResizeWebProcessor>();
 
 var app = builder.Build();
 
