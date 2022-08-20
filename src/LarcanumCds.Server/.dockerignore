@@ -1,1 +1,4 @@
+# wwwroot contains "development data" and should be empty when bundled into a container
 wwwroot/*
+
+appsettings.Development.json
