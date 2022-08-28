@@ -16,7 +16,7 @@ public class SpaRoutingMiddleware
 	{
 		if (httpContext.Request.Path.Value == "/" && settings.Value.Prefix != String.Empty)
 		{
-			httpContext.Response.Redirect($"{httpContext.Request.Scheme}://{httpContext.Request.Host}{settings.Value.Prefix}");
+			httpContext.Response.Redirect($"{settings.Value.Prefix}");
 			return;
 		}
 
